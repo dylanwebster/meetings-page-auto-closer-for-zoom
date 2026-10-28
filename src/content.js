@@ -29,7 +29,7 @@ function getCountdownStartTimeMs() {
   } catch (e) {
     console.error(e);
   }
-  if (!startTimeMs || startTimeMs <= minCountdownStartTimeMs || startTimeMs > maxCountdownStartTimeMs) {
+  if (!startTimeMs || startTimeMs < minCountdownStartTimeMs || startTimeMs > maxCountdownStartTimeMs) {
     setCountdownStartTimeMs(defaultStartTimeMs); // Overwrite to self-correct
     startTimeMs = defaultStartTimeMs;
   }
@@ -84,18 +84,19 @@ function countdownWithText(countdownTimeMs) {
 
 function injectAndUpdateSettingsMenu() {
   const incrementalSec = 5.0;
-  const trueCountdownStartTimeSec = Math.round(getCountdownStartTimeMs() / incrementalSec / 1000.0) * incrementalSec;
+  const currentSec = Math.round(getCountdownStartTimeMs() / 1000);
+  const gridSec = Math.round(currentSec / incrementalSec) * incrementalSec;
 
   const optionsList = [];
-  const decrementValSec = trueCountdownStartTimeSec - incrementalSec;
-  const incrementValSec = trueCountdownStartTimeSec + incrementalSec;
+  const decrementValSec = gridSec - incrementalSec;
+  const incrementValSec = gridSec + incrementalSec;
   if (decrementValSec * 1000 >= minCountdownStartTimeMs) {
     optionsList.push(decrementValSec);
   }
   if (incrementValSec * 1000 < maxCountdownStartTimeMs) {
     optionsList.push(incrementValSec);
   }
-  if (!optionsList) {
+  if (optionsList.length === 0) {
     log('no options');
     return;
   }
@@ -105,7 +106,7 @@ function injectAndUpdateSettingsMenu() {
   const settingsEl = document.createElement('div');
   settingsEl.classList.add(cssClassName_SettingsMenu);
   settingsEl.innerHTML = `
-  ${trueCountdownStartTimeSec} seconds not your speed?  Try 
+  ${currentSec} seconds not your speed?  Try 
   <a class='${cssClassName_SettingsOption}'>${optionsList[0]}s</a>
   `;
   if (optionsList.length > 1) {
@@ -120,7 +121,7 @@ function injectAndUpdateSettingsMenu() {
     const op = optionsList[i];
     optionEl.onclick = () => {
       log(`New option selected: ${op}`);
-      const ms = (op + 1) * 1000;
+      const ms = op * 1000;
       timeTillCloseMs = ms;
       setCountdownStartTimeMs(ms);
       injectAndUpdateSettingsMenu();
@@ -153,11 +154,13 @@ function isPostAttendee() {
 }
 
 function isMeetingStatusSuccess() {
-  if (window.location.href.toLowerCase().includes('success')) {
+  const url = getUrl();
+  if (url.searchParams.get('status')?.toLowerCase() === 'success') {
     return true;
   }
 
-  return false;
+  const hashValue = url.hash.replace(/^#/, '').split(/[?&]/)[0].toLowerCase();
+  return hashValue === 'success';
 }
 
 function isPageTextLikeMeetingLaunch() {

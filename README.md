@@ -18,7 +18,12 @@ Complete privacy. Contains no analytics. Zero dependencies.
 
 
 ## Test Urls
-- https://zoom.us/test
+
+These URLs match the extension and start the countdown.
+A join link does so when `status=success` or the hash is `#success`.
+
+- https://zoom.us/j/123456789?status=success
+- https://zoom.us/j/123456789#success
 - https://zoom.us/postattendee
 - https://zoom.us/wc/leave
 
