@@ -1,6 +1,4 @@
 const intervalRateMs = 1000;
-const maxCountdownStartTimeMs = 35 * 1000;
-const minCountdownStartTimeMs = 5 * 1000;
 
 const cssClassName_Wrapper = `meetings-page-auto-closer-for-zoom-wrapper`;
 const cssClassName_MainPopOver = `meetings-page-auto-closer-for-zoom-main-pop-over`;
@@ -22,18 +20,17 @@ log('loaded...');
 let timeTillCloseMs = getCountdownStartTimeMs();
 
 function getCountdownStartTimeMs() {
-  const defaultStartTimeMs = 21 * 1000;
-  let startTimeMs = defaultStartTimeMs;
+  let rawValue = null;
   try {
-    startTimeMs = Number(localStorage.getItem(localStorageKey_CountdownStartTimeMs));
+    rawValue = localStorage.getItem(localStorageKey_CountdownStartTimeMs);
   } catch (e) {
     console.error(e);
   }
-  if (!startTimeMs || startTimeMs < minCountdownStartTimeMs || startTimeMs > maxCountdownStartTimeMs) {
-    setCountdownStartTimeMs(defaultStartTimeMs); // Overwrite to self-correct
-    startTimeMs = defaultStartTimeMs;
+  const normalized = CloseRules.normalizeCountdownStartTimeMs(rawValue);
+  if (normalized.reset) {
+    setCountdownStartTimeMs(normalized.startTimeMs);
   }
-  return startTimeMs;
+  return normalized.startTimeMs;
 }
 
 function setCountdownStartTimeMs(startTimeMs) {
@@ -83,19 +80,7 @@ function countdownWithText(countdownTimeMs) {
 }
 
 function injectAndUpdateSettingsMenu() {
-  const incrementalSec = 5.0;
-  const currentSec = Math.round(getCountdownStartTimeMs() / 1000);
-  const gridSec = Math.round(currentSec / incrementalSec) * incrementalSec;
-
-  const optionsList = [];
-  const decrementValSec = gridSec - incrementalSec;
-  const incrementValSec = gridSec + incrementalSec;
-  if (decrementValSec * 1000 >= minCountdownStartTimeMs) {
-    optionsList.push(decrementValSec);
-  }
-  if (incrementValSec * 1000 < maxCountdownStartTimeMs) {
-    optionsList.push(incrementValSec);
-  }
+  const { currentSec, options: optionsList } = CloseRules.countdownSettings(getCountdownStartTimeMs());
   if (optionsList.length === 0) {
     log('no options');
     return;
@@ -121,7 +106,7 @@ function injectAndUpdateSettingsMenu() {
     const op = optionsList[i];
     optionEl.onclick = () => {
       log(`New option selected: ${op}`);
-      const ms = op * 1000;
+      const ms = CloseRules.countdownMsForChoice(op);
       timeTillCloseMs = ms;
       setCountdownStartTimeMs(ms);
       injectAndUpdateSettingsMenu();
@@ -154,13 +139,7 @@ function isPostAttendee() {
 }
 
 function isMeetingStatusSuccess() {
-  const url = getUrl();
-  if (url.searchParams.get('status')?.toLowerCase() === 'success') {
-    return true;
-  }
-
-  const hashValue = url.hash.replace(/^#/, '').split(/[?&]/)[0].toLowerCase();
-  return hashValue === 'success';
+  return CloseRules.isMeetingStatusSuccess(window.location.href);
 }
 
 function isPageTextLikeMeetingLaunch() {
